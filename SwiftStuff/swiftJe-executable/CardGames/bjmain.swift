@@ -1,3 +1,4 @@
+
 class Card {
     var suit: String = ""
     var face: String = ""
@@ -50,6 +51,16 @@ class Deck {
 
 }
 
+class Manager { //and all the empty husks cried out one word... 
+    var players: [Player] = [Player]() //first member in this array will be the dealer, rest are standard players
+    var numPlayers:Int = 0;
+    func beginBJ(){ //how to initiate a game of blackjack
+        print("how many players are you going to be playing with")
+        numPlayers = Int(readLine()!)!;
+        print("You have chosen to play with \(numPlayers) real players!");
+
+    }
+}
 
 class Player {
     //hand is an empty array of card objects
@@ -67,14 +78,13 @@ class Player {
     }
 
     func hit() -> Void{
-        
+        //deal();
     }
     func split() -> Void{
 
     }
+    func BLACKJACK() -> Void{
+        print("BLACKKKKKKKKKKJACKKKKKKKKKKKKKKKKKK!!!!!!!!!!!!!!!");
+    }
 
 }
-
-print("The thing is currently a work in progress, but this should be where you can choose all the games from so put something here")
-var choice:String = readLine()!
-print("Your choice was \(choice)")
