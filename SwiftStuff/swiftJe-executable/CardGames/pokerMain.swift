@@ -1,7 +1,3 @@
-//This file is meant to contain a usable base for card games
-//Currently it contains a basic implementation of a deck of cards and a player class
-//The deck can create a standard 52 card deck, remove cards, and add cards
-//The player can deal themselves a specified number of cards from a given deck
 class Card {
     var suit: String = ""
     var face: String = ""
@@ -26,17 +22,15 @@ class Deck {
     var cards: [Card] = [Card]()
 
     
-    func createDeck(numDecks numberOfDecks: Int = 1) -> [Card] {
-        //Iterates through the number of 52 card decks to create, by default 1
-        for _ in 1...numberOfDecks{
-            //Iterates through each suit, and for each suit each face.
-            for suit in SUITS {
-                for face in FACES {
-                    //Creates cards and adds them to the cards array
-                    cards.append(Card(suit: suit, face: face, value: VALUE_MAP[face]!))
-                }
+    func createDeck() -> [Card] {
 
+        //Iterates through each suit, and for each suit each face.
+        for suit in SUITS {
+            for face in FACES {
+                //Creates cards and adds them to the cards array
+                cards.append(Card(suit: suit, face: face, value: VALUE_MAP[face]!))
             }
+
         }
         return cards
     }
