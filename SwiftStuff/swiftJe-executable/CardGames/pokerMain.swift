@@ -1,10 +1,5 @@
 //Poker game main file
 //TODO
-//Must create 2 52 card decks and shuffle them together
-//create discard pile
-//Deal 5 cards to each player
-//take bets from each player, using poker betting rules (players must bet at least the amount of the previous bet, can fold, can check if no bet has been made)
-//? Add Ante functionality
 // Understand poker scoring
 //Chip logic (values -> Chip type)
 class Card {
@@ -26,8 +21,11 @@ class Card {
 class Deck {
     let SUITS: [String] = ["Spades", "Diamonds", "Clubs", "Hearts"]
     let FACES: [String] = ["Ace", "2", "3", "4", "5", "6", "7", "8", "9", "10", "Jack", "Queen", "King"]
-    let VALUE_MAP: [String: Int] = ["Ace": 1, "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 8, "9": 9, "10": 10,"Jack": 10, "Queen": 10, "King": 10]
-    
+    let VALUE_MAP: [String: Int] = ["Ace": 14, "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 8, "9": 9, "10": 10,"Jack": 11, "Queen": 12, "King": 13]
+    //this is code meant for wide application, .value will be mostly unused because poker relies on card combinations to score. 
+
+
+
     var cards: [Card] = [Card]()
 
     
@@ -77,17 +75,25 @@ class Deck {
 
 class Player {
     //hand is an empty array of card objects
-    var hand: [Card] = [Card]()
+    var hand: [Card] = []
     //placeholder values for money and bet
     var money: Int = 1000
     var bet: Int = 0
+
+    var suits: [String] = []
+    var faces: [String] = []
+    var values: [Int] = []
 
 
     func deal(numCards numberOfCards: Int = 1, deck deckToUse: Deck) -> [Card] {
         //deals the number of cards to the player from the selected deck
         for _ in 1...numberOfCards{
             //removes the card at the first index and appends it to the hand
-            hand.append(deckToUse.removeCard(index: 0))
+            let card = deckToUse.removeCard(index: 0)
+            hand.append(card)
+            suits.append(card.suit)
+            faces.append(card.face)
+            values.append(card.value)
         }
 
         return hand
@@ -128,7 +134,7 @@ class Player {
     func raise(previousBet previousBetAmount: Int, raiseAmount amountToRaise: Int) -> Bool {
         let totalBet = previousBetAmount + amountToRaise
         //this checks if the player has enough money to cover the total bet (previous bet + raise amount)
-        //not currently applicable as each player has equal money, but will be useful in future if players can have different amounts of money
+        //not currently applicable as each player has equal money, but will be useful in future
         if totalBet <= money + bet {   
             let amountToPay = totalBet - bet  
             money -= amountToPay
@@ -145,12 +151,10 @@ class Player {
 }
 
  
-func runBettingRound(players:[Player], deck mainDeck: Deck, pile discardPile: Deck, anteAmount: Int = 0) -> Void {
+func runBettingRound(players:[Player], deck mainDeck: Deck, pile discardPile: Deck,ante anteAmount: Int = 0) -> Void {
     //runs a betting round for the given players, using the given deck and discard pile
     //anteAmount is the amount each player must bet at the start of the round, defaults to 0
-    //currently does not handle end of round logic (i.e. all but one player folding)
-    //also does not handle betting rounds after the first, where players can check if no bet has been made
-    //this is a basic implementation to test the betting functions
+    //does not handle betting rounds after the first, where players can check if no bet has been made
     var currentBet: Int = anteAmount
     //playerStatus array will contain a boolean for each player, true if they are still in the round, false if they have folded, and their bet amount
     var playerStatus: [(Bool, Int)] = [(Bool, Int)]()
@@ -158,71 +162,21 @@ func runBettingRound(players:[Player], deck mainDeck: Deck, pile discardPile: De
 
     for player in players {
         playerStatus.append((true, 0))
+        //resets each player's bet to 0 at the start of the round (ensures no carryover from previous rounds)
+        player.bet = 0
+        //resets each player's money to 1000 for testing purposes
+        player.money = 1000
     }
 
 
+    //Collects antes from each player if anteAmount is greater than 0
+    if anteAmount > 0 {
+        takeAnte(players: players, deck: mainDeck, pile: discardPile, ante: anteAmount, status: &playerStatus)
+        currentBet = anteAmount
+    }
+
     while betsNotEqual {
-        for (index,player) in players.enumerated() {
-            if player.hand.isEmpty {
-                //checks if player is folded, if so skips their turn
-                continue
-            }
-            if currentBet > 0 {    
-                print("The current bet is \(currentBet)")
-            }
-            if currentBet > player.money + player.bet {
-                print("Player \(index + 1) does not have enough money to continue and must fold.")
-                player.fold(discardPile: discardPile)
-                continue
-            }
-            print("Player \(index + 1), what would you like to do (Bet, Call, Fold, or Raise)?")
-            if let action = readLine()?.lowercased(){
-                switch action {
-                    case "bet":
-                        print("How much would you like to bet?")
-                        //reads input from user and converts it to an integer (This catches invalid input)
-                        if let betInput = readLine(), let betAmount = Int(betInput) {
-                            //checks if the player was able to place the bet, if so updates the current bet (This catches bets that are too high)
-                            if player.placeBet(amount: betAmount) {
-                                currentBet = betAmount
-                            }
-                        } else {
-                            print("Invalid bet amount")
-                        }
-
-                    case "call":
-                        if currentBet > 0 {
-                            player.call(previousBet: currentBet)
-                        } else {
-                            //when the player calls, but there is no current bet, it is treated as a check
-                            print("Checked.")
-                        }
-
-                    case "fold":
-                        print("Folded.")
-                        player.fold(discardPile: discardPile)
-                        playerStatus[index].0 = false
-
-                    case "raise":
-                        print("How much would you like to raise?")
-                        if let raiseInput = readLine(), let raiseAmount = Int(raiseInput) {
-                            if player.raise(previousBet: currentBet, raiseAmount: raiseAmount) {
-                                currentBet += raiseAmount
-                            }
-                        } else {
-                            print("Invalid bet amount")
-                        }
-                        
-                    default:
-                        print("Invalid input")
-
-                }
-            }
-            //If the player is still in the game, updates their bet amount.
-            if playerStatus[index].0 {
-                playerStatus[index].1 = currentBet
-            }
-        }
+        takeBets(players:players, deck: mainDeck, pile: discardPile, status: &playerStatus, bet: &currentBet)
 
         //checks if all players have equal bets, if so ends the betting round
         //creates an array of the bets of all players still in the round (those with a true boolean in playerStatus)
@@ -238,11 +192,198 @@ func runBettingRound(players:[Player], deck mainDeck: Deck, pile discardPile: De
     }
 }
 
+func takeBets(players:[Player], deck mainDeck: Deck, pile discardPile: Deck, statuses playerStatus: inout [(Bool, Int)], bet currentBet: inout Int) -> [(Bool, Int)] {
+    for (index,player) in players.enumerated() {
+
+        if player.hand.isEmpty {
+            //checks if player is folded, if so skips their turn
+            continue
+        }
+        if currentBet > 0 {    
+            print("The current bet is \(currentBet)")
+        }
+        if currentBet > player.money + player.bet {
+            print("Player \(index + 1) does not have enough money to continue and must fold.")
+            player.fold(discardPile: discardPile)
+            continue
+        }
+        print("Player \(index + 1), what would you like to do (Bet, Call, Fold, or Raise)?")
+        if let action = readLine()?.lowercased(){
+            switch action {
+                case "bet":
+                    print("How much would you like to bet?")
+                    //reads input from user and converts it to an integer (This catches invalid input)
+                    if let betInput = readLine(), let betAmount = Int(betInput) {
+                        //checks if the player was able to place the bet, if so updates the current bet (This catches bets that are too high)
+                        if player.placeBet(amount: betAmount) {
+                            currentBet = betAmount
+                        }
+                    } else {
+                        print("Invalid bet amount")
+                    }
+
+                case "call":
+                    if currentBet > 0 {
+                        player.call(previousBet: currentBet)
+                    } else {
+                        //when the player calls, but there is no current bet, it is treated as a check
+                        print("Checked.")
+                    }
+
+                case "fold":
+                    print("Folded.")
+                    player.fold(discardPile: discardPile)
+                    //updates the player's status to folded
+                    playerStatus[index].0 = false
+
+                case "raise":
+                    print("How much would you like to raise?")
+                    if let raiseInput = readLine(), let raiseAmount = Int(raiseInput) {
+                        if player.raise(previousBet: currentBet, raiseAmount: raiseAmount) {
+                            currentBet += raiseAmount
+                            break
+                        }
+                    } else {
+                        print("Invalid bet amount")
+                    }
+                    
+                default:
+                    print("Invalid input")
+
+            }
+        }
+        //If the player is still in the game, updates their bet amount.
+        if playerStatus[index].0 {
+            playerStatus[index].1 = currentBet
+        }
+    }
+    checkStatus(players: players)
+    return playerStatus
+}
+
+//hand logic will go here
+func runScoringRound() -> Void {
+
+    for player in players {
+        let face = player.faces[0]
+        let value = player.values[0]
+        let suit = player.suits[0]
+
+        //if all suits are the same
+        if player.suits.allSatisfy({$0 == suit}){
+            //if all values are the same
+            if player.values.allSatisfy({$0 == value}){
+                //five of a kind
+            }
+            //sorts the array in numerical order, then checks if each value is equal to the previous value plus one
+            if player.values.sorted{ $1 > $0 }.filter{ $1 == ($0 + 1)} == player.values {
+                //if the hand is a royal flush
+                if ["Ace", "King", "Queen", "Jack", "10"].allSatisfy[player.faces.contains]{
+                    //royal flush
+                }
+                else {
+
+                    //flush five
+
+                }
+            }
+        }
+        for face in player.faces {
+            let countOfSameFaces = player.faces.filter { $0 == face }.count
+            if countOfSameFaces == 4 {
+                // Four of a kind
+            } else if countOfSameFaces == 3 {
+                for face in player.faces {
+                    let tempCount = player.faces.filter { $0 == face }.count //needs clearer name
+                    if tempCount == 2 {
+                        
+                    }
+                // Three of a kind
+                }
+            } else if countOfSameFaces == 2 {
+                // Pair
+            }
+        }
+
+
+    }
+    
+}
+//poker hand conditions:
+//Five of the same face (possible only in games with more than 1 deck) (Five of a kind)
+//King, Queen, Jack, 10, and ace of the same suit (Royal flush)
+//Five cards numerically consecutive of the same suit   (Straight Five)
+//Four cards of the same face   (Four of a kind)
+//Three cards of the same face, with the remaining two being the same face
+//All cards of the same suit
+//Five Cards numerically consecutive, but not of the same suit
+//Three cards of the same face
+//Two pairs of the same faces
+//One pair
+//if none of these is fulfilled, the highest card is counted.
+
+
+
+
+//in the case of ties, the player with the highest face value wins.
+//For a royal flush, or other identical hands, the pot is split.
+//for a full house tie, the player with the higher three-of-a-kind wins.
+func evaluateHands(){
+    //card.value
+}
+
+func takeAnte(players:[Player], deck mainDeck: Deck, pile discardPile: Deck,ante anteAmount: Int, status: inout [(Bool, Int)]) -> Void {
+    print("Current Ante: \(anteAmount). Collecting from each player...")
+    for (index, player) in players.enumerated() {
+        //folds players who cannot pay the ante
+        if player.money < anteAmount{
+            print("Player \(index) does not have enough money and has folded.")
+            player.fold(discardPile: discardPile)
+            status[index].0 = false
+
+        }
+
+        else {
+            print("Player \(index) ponies up $\(anteAmount).")
+            player.placeBet(amount: anteAmount)
+            status[index].1 = anteAmount
+        }
+    }
+}
+
+//checks the status of the game. true if more than one player remains.
+func checkStatus(players: [Player]) -> Bool {
+    var activePlayers: Int = players.count
+    for (index, player) in players.enumerated() {
+        if activePlayers <= 1 {
+            declareWinner(players: players, winner: player, index: index)
+            return false
+        }
+        if player.hand.isEmpty {
+            activePlayers -= 1
+        }
+
+    }
+    return true
+}
+
+//not yet implemented
+func declareWinner(players: [Player], winner winningPlayer: Player, index: Int) {
+    var potTotal: Int = 0
+    for player in players {
+        //takes the winning player's bet as well as every other player's bet. not sure that should happen! oh well
+        potTotal += player.bet
+    }
+    potTotal -= winningPlayer.money
+    print("Player \(index) wins $\(potTotal)")
+    winningPlayer.money += potTotal
+}
+
 
 func initializeGame(decks numDecks: Int = 1, players numPlayers: Int = 4) {
     //Creates an array of Player objects 
-    var discardPile = Deck()
-    var mainDeck = Deck()
+    let discardPile = Deck()
+    let mainDeck = Deck()
     var players: [Player] = []
 
     for _ in 1...numPlayers {
