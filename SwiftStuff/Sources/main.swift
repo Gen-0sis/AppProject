@@ -62,6 +62,11 @@ public class Player {
     var balance: Int = 500
     var ready: Bool = false;
     var name: String = "Unnamed"
+
+    init(name Name: String) {
+        self.name = Name
+    }
+
     public func dealt(numCards numberOfCards: Int = 1, deck deckToUse: Deck) -> [Card] {
         //deals the number of cards to the player from the selected deck
         for _ in 1...numberOfCards{
@@ -101,16 +106,10 @@ public class Manager { //and all the empty husks cried out one word...
         pot += amount * numPlayers
         //respective amount needs to be subtracted from all players
 
-
     }
     
-    public func beginBJ(){ //how to initiate a game of blackjack
-        print("how many players are you going to be playing with")
-        numPlayers = Int(readLine()!)! 
-        print("You have chosen to play with \(numPlayers) real players!") 
-    }
     public func beginRound() {
-
+        
     }
     public func endRound() {//a measure of player values (find the maximum value, but may need to see if there is a tie), then who gets how much money
 
@@ -118,31 +117,67 @@ public class Manager { //and all the empty husks cried out one word...
     public func BLACKJACK() -> Void{
       print("BLACKKKKKKKKKKJACKKKKKKKKKKKKKKKKKK!!!!!!!!!!!!!!!") 
     }
+    public func checkName(name Name: String) -> String {
+        if (Name != "Bot"){
+            return Name
+        }
+        else{
+            print("name is not allowed, try again")
+            return checkName(name: readLine()!)
+        }
+    }
+    public func generatePlayers() {
+        if numPlayers <= 1{
+            players = [Player]()
+            for i in 1...numPlayers{
+                print("what will be the name of player \(i)")
+                players.append(Player(name: checkName(name: readLine()!)))
+            }
+        }
+        
+    }
+
+    public func run() {
+//the gameplay loop
+
+//amount of players needed
+        print("how many players are you going to be playing with")
+        numPlayers = Int(readLine()!)! //ill need to check if this is larger than 0 eventually...
+        print("You have chosen to play with \(numPlayers) real players!") 
+        generatePlayers()
+    var done = false
+//the loop begins
+    while !done {
+    //ask every player for their bet, take the highest bet and make everyone add it to the pot (without anyone going bankrupt, if someone is going to go bankrupt, turn them negative)
+
+        //deal out the cards
+
+        //start with the end of the array
+
+        //ask about what their action is after showing them their cards (raise pot if necessary)
+        //decrease the index of the array
+        //send a bunch of new lines to clear screen so the next player isn't spoiled
+
+    //repeat previous 3 steps (until got the actions of all the players)
+
+    //display the cards of everyone
+    //whoever wins gets all the money
+    //if anyone is negative money they are removed from the game (make sure not to take bankrupt money as real money, and only take the balance of the player before they went bankrupt)
+
+    //repeat asking for bets until only one player remains
+        if numPlayers <= 1 {
+            done = true
+        }
+    }
+
+
+//then end game 
+//say who won and how much money they got
+print("\(players[0].name) has won the game of blackjack with \(players[0].balance)")
+    }
     
 }
 
 
-//the gameplay loop
 
-//amount of players needed
-
-//ask every player for their bet, take the highest bet and make everyone add it to the pot (without anyone going bankrupt, if someone is going to go bankrupt, turn them negative)
-//deal out the cards
-
-//start with the end of the array
-
-//ask about what their action is after showing them their cards (raise pot if necessary)
-//decrease the array
-//send a bunch of new lines to clear screen so the next player isn't spoiled
-
-//repeat previous 3 steps (starting from line 133 to line 135)
-
-//display the cards of everyone
-//whoever wins gets all the money
-//if anyone is negative money they are removed from the game (make sure not to take bankrupt money as real money, and only take the balance of the player before they went bankrupt)
-
-//go back to line 128 until satisfactory results (when only one player remains)
-
-//then end game 
-//say who won and how much money they got
 
