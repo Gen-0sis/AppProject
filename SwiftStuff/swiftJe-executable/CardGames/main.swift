@@ -80,3 +80,17 @@ class Player {
     }
 
 }
+//use for games which have hand types
+enum hands: String {
+    case royalFlush = "Royal flush"
+    case straightFlush = "Straight flush"
+    case fiveOfAKind = "Five of a kind"
+    case fourOfAKind = "Four of a kind"
+    case fullHouse = "Full house"
+    case flush = "Flush"
+    case straight = "Straight"
+    case threeOfAKind = "Three of a kind"
+    case twoPair = "Two pair"
+    case onePair = "One pair"
+    case highCard = "High card"
+}

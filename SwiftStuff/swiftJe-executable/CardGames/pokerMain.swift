@@ -24,11 +24,8 @@ class Deck {
     let VALUE_MAP: [String: Int] = ["Ace": 14, "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 8, "9": 9, "10": 10,"Jack": 11, "Queen": 12, "King": 13]
     //this is code meant for wide application, .value will be mostly unused because poker relies on card combinations to score. 
 
-
-
     var cards: [Card] = [Card]()
 
-    
     func createDeck(numDecks numberOfDecks: Int = 2) -> [Card] {
         //Iterates through the number of 52 card decks to create, by default 2
         for _ in 1...numberOfDecks{
@@ -72,17 +69,14 @@ class Deck {
 
 }
 
-
-class Player {
+class Player {  
     //hand is an empty array of card objects
     var hand: [Card] = []
     //placeholder values for money and bet
     var money: Int = 1000
     var bet: Int = 0
-
-    var suits: [String] = []
-    var faces: [String] = []
-    var values: [Int] = []
+    var handType: PokerHand = .highCard
+    var tieBreakerCard: (PokerHand, Card) = (.highCard, Card(suit: "", face: "", value: 0))
 
 
     func deal(numCards numberOfCards: Int = 1, deck deckToUse: Deck) -> [Card] {
@@ -91,9 +85,6 @@ class Player {
             //removes the card at the first index and appends it to the hand
             let card = deckToUse.removeCard(index: 0)
             hand.append(card)
-            suits.append(card.suit)
-            faces.append(card.face)
-            values.append(card.value)
         }
 
         return hand
@@ -146,11 +137,65 @@ class Player {
             return false
         }
     }
+}
 
+enum PokerHand: String {
+    case royalFlush = "Royal flush"
+    case straightFlush = "Straight flush"
+    case fiveOfAKind = "Five of a kind"
+    case fourOfAKind = "Four of a kind"
+    case fullHouse = "Full house"
+    case flush = "Flush"
+    case straight = "Straight"
+    case threeOfAKind = "Three of a kind"
+    case twoPair = "Two pair"
+    case onePair = "One pair"
+    case highCard = "High card"
+}
+
+struct pokerHands {
+    //This is called on any array of card objects.
+    let cards: [Card]
+
+    var isFlush: Bool {
+        //isFlush checks if each card is the same suit.
+        // if you can set firstSuit equal to the suit of the suit of the first card, continue. else return false.
+        guard let firstSuit = cards.first?.suit else { return false }
+        //returns true if each suit is equal
+        return cards.allSatisfy { $0.suit == firstSuit }
+    }
+
+    var isStraight: Bool {
+        //gets an array of the values of each card, sorts it, and stores it in sortedValues.
+        let sortedValues = cards.map { $0.value }.sorted()
+        //iterates through sortedValues by index
+        for i in 0..<sortedValues.count - 1 {
+            //checks if any of the values are non-consecutive
+            if sortedValues[i] + 1 != sortedValues[i + 1] {
+                return false
+            }
+        }
+        return true
+    }
+
+    var faceCounts: [String: Int] {
+        //creates a dictionary of faces, then makes it count the amount of each face. e.g. a hand with two kings would have King: 2
+        Dictionary(grouping: cards, by: { $0.face }).mapValues { $0.count }
+    }
+
+    var valueCounts: [Int: Int] {
+        //does the same as faceCounts, but for values.
+        Dictionary(grouping: cards, by: { $0.value }).mapValues { $0.count }
+    }
+
+    var isRoyal: Bool {
+        let royalFaces = Set(["10", "Jack", "Queen", "King", "Ace"])
+        //returns a boolean, true if the array of faces matches the Set
+        return Set(cards.map { $0.face }) == royalFaces
+    }
 
 }
 
- 
 func runBettingRound(players:[Player], deck mainDeck: Deck, pile discardPile: Deck,ante anteAmount: Int = 0) -> Void {
     //runs a betting round for the given players, using the given deck and discard pile
     //anteAmount is the amount each player must bet at the start of the round, defaults to 0
@@ -167,7 +212,6 @@ func runBettingRound(players:[Player], deck mainDeck: Deck, pile discardPile: De
         //resets each player's money to 1000 for testing purposes
         player.money = 1000
     }
-
 
     //Collects antes from each player if anteAmount is greater than 0
     if anteAmount > 0 {
@@ -189,6 +233,11 @@ func runBettingRound(players:[Player], deck mainDeck: Deck, pile discardPile: De
             //if no active players remain, ends the betting round
             betsNotEqual = false
         }
+    }
+
+    for player in players {
+        player.handType = checkPlayerHand(hand: player.hand)
+        player.tieBreakerCard = getHighCard(player: player)
     }
 }
 
@@ -260,78 +309,79 @@ func takeBets(players:[Player], deck mainDeck: Deck, pile discardPile: Deck, sta
     checkStatus(players: players)
     return playerStatus
 }
+//returns the hand type
+func checkPlayerHand(hand: [Card]) -> PokerHand {
+    //counts becomes an array of the values of cards, sorted in descending order.
+    let handEval = pokerHands(cards: hand)
+    let faceCounts = handEval.faceCounts
+    let counts = faceCounts.values.sorted(by: >)
 
-//hand logic will go here
-func runScoringRound() -> Void {
+    if handEval.isFlush && handEval.isStraight && handEval.isRoyal {
+        //royal flush
+        return .royalFlush
+    } else if handEval.isFlush && handEval.isStraight {
+        return .straightFlush
+        //straight flush
+    } else if counts == [5] {
+        return .fiveOfAKind
+        //Five of a kind
+    } else if counts == [4, 1] {
+        return .fourOfAKind
+        //four of a kind
+    } else if counts == [3, 2] {
+        return .fullHouse
+        //full house
+    } else if handEval.isFlush {
+        return .flush
+        //flush
+    } else if handEval.isStraight {
+        return .straight
+        //straight
+    } else if counts == [3, 1, 1] {
+        return .threeOfAKind
+        //three of a kind
+    } else if counts == [2, 2, 1] {
+        return .twoPair
+        //two pair
+    } else if counts == [2, 1, 1, 1] {
+        return .onePair
+        //one pair
+    } else {
+        return .highCard
+        //high card
+    }
 
-    for player in players {
-        let face = player.faces[0]
-        let value = player.values[0]
-        let suit = player.suits[0]
+}
+//returns the card used as a tiebreaker
+func getHighCard(player: Player) -> Card {
+    let handEval = pokerHands(cards: player.hand)
+    let faceCounts = handEval.faceCounts
+    let handType = player.handType
 
-        //if all suits are the same
-        if player.suits.allSatisfy({$0 == suit}){
-            //if all values are the same
-            if player.values.allSatisfy({$0 == value}){
-                //five of a kind
-            }
-            //sorts the array in numerical order, then checks if each value is equal to the previous value plus one
-            if player.values.sorted{ $1 > $0 }.filter{ $1 == ($0 + 1)} == player.values {
-                //if the hand is a royal flush
-                if ["Ace", "King", "Queen", "Jack", "10"].allSatisfy[player.faces.contains]{
-                    //royal flush
-                }
-                else {
+    switch handType {
+        case .royalFlush:
+            //ace
+            return player.hand.first { $0.face == "Ace" }!
+        
+        case .straightFlush, .highCard, .straight:
+            //highest numerical value
+            return player.hand.max(by: { $0.value < $1.value })!
+            
+        case .fiveOfAKind, .fourOfAKind:
+            //any of the five
+            return player.hand.first { faceCounts[$0.face] == 4 || faceCounts[$0.face] == 5 }!
 
-                    //flush five
+        case .fullHouse, .threeOfAKind:
+            return player.hand.first { faceCounts[$0.face] == 3 }!
 
-                }
-            }
-        }
-        for face in player.faces {
-            let countOfSameFaces = player.faces.filter { $0 == face }.count
-            if countOfSameFaces == 4 {
-                // Four of a kind
-            } else if countOfSameFaces == 3 {
-                for face in player.faces {
-                    let tempCount = player.faces.filter { $0 == face }.count //needs clearer name
-                    if tempCount == 2 {
-                        
-                    }
-                // Three of a kind
-                }
-            } else if countOfSameFaces == 2 {
-                // Pair
-            }
-        }
+        case .twoPair, .onePair:
+        //max value card in pair
+            return player.hand.filter { faceCounts[$0.face] == 2 }.max(by: { $0.value < $1.value })!
 
 
     }
-    
 }
-//poker hand conditions:
-//Five of the same face (possible only in games with more than 1 deck) (Five of a kind)
-//King, Queen, Jack, 10, and ace of the same suit (Royal flush)
-//Five cards numerically consecutive of the same suit   (Straight Five)
-//Four cards of the same face   (Four of a kind)
-//Three cards of the same face, with the remaining two being the same face
-//All cards of the same suit
-//Five Cards numerically consecutive, but not of the same suit
-//Three cards of the same face
-//Two pairs of the same faces
-//One pair
-//if none of these is fulfilled, the highest card is counted.
-
-
-
-
-//in the case of ties, the player with the highest face value wins.
-//For a royal flush, or other identical hands, the pot is split.
-//for a full house tie, the player with the higher three-of-a-kind wins.
-func evaluateHands(){
-    //card.value
-}
-
+//Takes ante bets from each player
 func takeAnte(players:[Player], deck mainDeck: Deck, pile discardPile: Deck,ante anteAmount: Int, status: inout [(Bool, Int)]) -> Void {
     print("Current Ante: \(anteAmount). Collecting from each player...")
     for (index, player) in players.enumerated() {
@@ -350,7 +400,6 @@ func takeAnte(players:[Player], deck mainDeck: Deck, pile discardPile: Deck,ante
         }
     }
 }
-
 //checks the status of the game. true if more than one player remains.
 func checkStatus(players: [Player]) -> Bool {
     var activePlayers: Int = players.count
@@ -366,7 +415,6 @@ func checkStatus(players: [Player]) -> Bool {
     }
     return true
 }
-
 //not yet implemented
 func declareWinner(players: [Player], winner winningPlayer: Player, index: Int) {
     var potTotal: Int = 0
@@ -374,11 +422,9 @@ func declareWinner(players: [Player], winner winningPlayer: Player, index: Int) 
         //takes the winning player's bet as well as every other player's bet. not sure that should happen! oh well
         potTotal += player.bet
     }
-    potTotal -= winningPlayer.money
     print("Player \(index) wins $\(potTotal)")
     winningPlayer.money += potTotal
 }
-
 
 func initializeGame(decks numDecks: Int = 1, players numPlayers: Int = 4) {
     //Creates an array of Player objects 
