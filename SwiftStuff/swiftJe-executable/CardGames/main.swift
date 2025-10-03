@@ -2,6 +2,8 @@
 //Currently it contains a basic implementation of a deck of cards and a player class
 //The deck can create a standard 52 card deck, remove cards, and add cards
 //The player can deal themselves a specified number of cards from a given deck
+
+//card might be better off as a struct
 class Card {
     var suit: String = ""
     var face: String = ""

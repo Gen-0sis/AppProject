@@ -2,6 +2,8 @@
 //TODO
 // Understand poker scoring
 //Chip logic (values -> Chip type)
+
+
 class Card {
     var suit: String = ""
     var face: String = ""
@@ -26,7 +28,7 @@ class Deck {
 
     var cards: [Card] = [Card]()
 
-    func createDeck(numDecks numberOfDecks: Int = 2) -> [Card] {
+    func createDeck(numDecks numberOfDecks: Int = 2){
         //Iterates through the number of 52 card decks to create, by default 2
         for _ in 1...numberOfDecks{
             //Iterates through each suit, and for each suit each face.
@@ -38,7 +40,6 @@ class Deck {
 
             }
         }
-        return cards
     }
 
     func shuffleCards() -> Void{
@@ -69,6 +70,40 @@ class Deck {
 
 }
 
+enum PokerHand: String {
+    case royalFlush = "Royal flush"
+    case straightFlush = "Straight flush"
+    // case fiveOfAKind = "Five of a kind"
+    case fourOfAKind = "Four of a kind"
+    case fullHouse = "Full house"
+    case flush = "Flush"
+    case straight = "Straight"
+    case threeOfAKind = "Three of a kind"
+    case twoPair = "Two pair"
+    case onePair = "One pair"
+    case highCard = "High card"
+}
+
+class Manager {
+    let HAND_RANKS: [PokerHand: Int] = [.royalFlush : 1, .straightFlush : 2, .fourOfAKind: 3, .fullHouse: 4, .flush: 5, .straight: 6, .threeOfAKind: 7, .twoPair: 8, .onePair: 9, .highCard: 10]
+    var pot: Int = 0
+
+    func addToPot(amount amountToAdd: Int) {
+        pot += amountToAdd
+    }
+
+    func declareWinner(players: [Player], winner winningPlayer: Player, index winningPlayerIndex: Int) {
+        
+        for (index,player) in players.enumerated() {
+            player.money -= player.bet
+            player.bet = 0
+        }
+        print("Player \(winningPlayerIndex) wins $\(pot)")
+        winningPlayer.money += pot
+    }
+
+}
+
 class Player {  
     //hand is an empty array of card objects
     var hand: [Card] = []
@@ -76,7 +111,7 @@ class Player {
     var money: Int = 1000
     var bet: Int = 0
     var handType: PokerHand = .highCard
-    var tieBreakerCard: (PokerHand, Card) = (.highCard, Card(suit: "", face: "", value: 0))
+    var tieBreakerCard: Card = Card(suit: "", face: "", value: 0)
 
 
     func deal(numCards numberOfCards: Int = 1, deck deckToUse: Deck) -> [Card] {
@@ -139,19 +174,7 @@ class Player {
     }
 }
 
-enum PokerHand: String {
-    case royalFlush = "Royal flush"
-    case straightFlush = "Straight flush"
-    case fiveOfAKind = "Five of a kind"
-    case fourOfAKind = "Four of a kind"
-    case fullHouse = "Full house"
-    case flush = "Flush"
-    case straight = "Straight"
-    case threeOfAKind = "Three of a kind"
-    case twoPair = "Two pair"
-    case onePair = "One pair"
-    case highCard = "High card"
-}
+
 
 struct pokerHands {
     //This is called on any array of card objects.
@@ -196,7 +219,7 @@ struct pokerHands {
 
 }
 
-func runBettingRound(players:[Player], deck mainDeck: Deck, pile discardPile: Deck,ante anteAmount: Int = 0) -> Void {
+func runBettingRound(players:[Player], deck mainDeck: Deck, pile discardPile: Deck,ante anteAmount: Int = 0, manager: Manager) -> Void {
     //runs a betting round for the given players, using the given deck and discard pile
     //anteAmount is the amount each player must bet at the start of the round, defaults to 0
     //does not handle betting rounds after the first, where players can check if no bet has been made
@@ -220,7 +243,7 @@ func runBettingRound(players:[Player], deck mainDeck: Deck, pile discardPile: De
     }
 
     while betsNotEqual {
-        takeBets(players:players, deck: mainDeck, pile: discardPile, status: &playerStatus, bet: &currentBet)
+        takeBets(players:players, deck: mainDeck, pile: discardPile, statuses: &playerStatus, bet: &currentBet, manager: manager)
 
         //checks if all players have equal bets, if so ends the betting round
         //creates an array of the bets of all players still in the round (those with a true boolean in playerStatus)
@@ -239,9 +262,11 @@ func runBettingRound(players:[Player], deck mainDeck: Deck, pile discardPile: De
         player.handType = checkPlayerHand(hand: player.hand)
         player.tieBreakerCard = getHighCard(player: player)
     }
+    players = players.filter { $0.money > 0 && !$0.hand.isEmpty }
+
 }
 
-func takeBets(players:[Player], deck mainDeck: Deck, pile discardPile: Deck, statuses playerStatus: inout [(Bool, Int)], bet currentBet: inout Int) -> [(Bool, Int)] {
+func takeBets(players:[Player], deck mainDeck: Deck, pile discardPile: Deck, statuses playerStatus: inout [(Bool, Int)], bet currentBet: inout Int, manager: Manager) -> [(Bool, Int)] {
     for (index,player) in players.enumerated() {
 
         if player.hand.isEmpty {
@@ -306,7 +331,7 @@ func takeBets(players:[Player], deck mainDeck: Deck, pile discardPile: Deck, sta
             playerStatus[index].1 = currentBet
         }
     }
-    checkStatus(players: players)
+    checkStatus(players: players, manager: manager)
     return playerStatus
 }
 //returns the hand type
@@ -322,10 +347,12 @@ func checkPlayerHand(hand: [Card]) -> PokerHand {
     } else if handEval.isFlush && handEval.isStraight {
         return .straightFlush
         //straight flush
-    } else if counts == [5] {
-        return .fiveOfAKind
-        //Five of a kind
-    } else if counts == [4, 1] {
+    }
+    //  else if counts == [5] {
+    //     return .fiveOfAKind
+    //     //Five of a kind
+    // }
+    else if counts == [4, 1] {
         return .fourOfAKind
         //four of a kind
     } else if counts == [3, 2] {
@@ -366,10 +393,10 @@ func getHighCard(player: Player) -> Card {
         case .straightFlush, .highCard, .straight:
             //highest numerical value
             return player.hand.max(by: { $0.value < $1.value })!
-            
-        case .fiveOfAKind, .fourOfAKind:
-            //any of the five
-            return player.hand.first { faceCounts[$0.face] == 4 || faceCounts[$0.face] == 5 }!
+        
+        case .fourOfAKind:
+            //any of the four
+            return player.hand.first { faceCounts[$0.face] == 4 }!
 
         case .fullHouse, .threeOfAKind:
             return player.hand.first { faceCounts[$0.face] == 3 }!
@@ -377,7 +404,8 @@ func getHighCard(player: Player) -> Card {
         case .twoPair, .onePair:
         //max value card in pair
             return player.hand.filter { faceCounts[$0.face] == 2 }.max(by: { $0.value < $1.value })!
-
+        default:
+            return player.hand[0]
 
     }
 }
@@ -401,11 +429,11 @@ func takeAnte(players:[Player], deck mainDeck: Deck, pile discardPile: Deck,ante
     }
 }
 //checks the status of the game. true if more than one player remains.
-func checkStatus(players: [Player]) -> Bool {
+func checkStatus(players: [Player], manager: Manager) -> Bool {
     var activePlayers: Int = players.count
     for (index, player) in players.enumerated() {
         if activePlayers <= 1 {
-            declareWinner(players: players, winner: player, index: index)
+            manager.declareWinner(players: players, winner: player, index: index)
             return false
         }
         if player.hand.isEmpty {
@@ -416,21 +444,15 @@ func checkStatus(players: [Player]) -> Bool {
     return true
 }
 //not yet implemented
-func declareWinner(players: [Player], winner winningPlayer: Player, index: Int) {
-    var potTotal: Int = 0
-    for player in players {
-        //takes the winning player's bet as well as every other player's bet. not sure that should happen! oh well
-        potTotal += player.bet
-    }
-    print("Player \(index) wins $\(potTotal)")
-    winningPlayer.money += potTotal
-}
+
 
 func initializeGame(decks numDecks: Int = 1, players numPlayers: Int = 4) {
     //Creates an array of Player objects 
     let discardPile = Deck()
     let mainDeck = Deck()
+    let manager = Manager()
     var players: [Player] = []
+    
 
     for _ in 1...numPlayers {
         players.append(Player())
@@ -446,6 +468,6 @@ func initializeGame(decks numDecks: Int = 1, players numPlayers: Int = 4) {
     }
 
     //not the final place to put this, just testing the betting round function
-    runBettingRound(players: players, deck: mainDeck, pile: discardPile)
+    runBettingRound(players: players, deck: mainDeck, pile: discardPile, manager: manager)
     
 }
