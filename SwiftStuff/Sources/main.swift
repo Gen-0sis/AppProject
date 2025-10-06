@@ -1,4 +1,3 @@
-
 public class Card {
     var suit: String = ""
     var face: String = ""
@@ -62,6 +61,7 @@ public class Player {
     var balance: Int = 500
     var ready: Bool = false
     var name: String = "Unnamed"
+    var handsum:Int = 0
         var splitted: Bool = false
         var hand2: [Card] = [Card]()//hand only used if user has split
     
@@ -70,13 +70,12 @@ public class Player {
         self.name = Name
     }
 
-    public func dealt(numCards numberOfCards: Int = 1, deck deckToUse: Deck) -> [Card] {
+    public func dealt(numCards numberOfCards: Int = 1, deck deckToUse: Deck){
         //deals the number of cards to the player from the selected deck
         for _ in 1...numberOfCards{
             //removes the card at the first index and appends it to the hand
             hand.append(deckToUse.removeCard(index: 0))
         }
-        return hand
     }
 
     public func hit(deck deckToUse: Deck) {
@@ -93,17 +92,23 @@ public class Player {
     public func split() { //you can't split multiple times in a row
         
     }
-    public func declare() -> Int{
-        return 0
+    public func declare() -> Int{//for announcing the sum of the cards in hand is
+        var sum = 0
+        for i:Int in 0...hand.count-1{
+            sum += hand[i].value
+        }
+        print("\(name) has a sum of \(sum)")
+        handsum = sum
+        return sum
     }
-    public func question() {
-
+    public func question(deck deckToUse: Deck) -> Deck{//after eventually getting the choices, since all of these will be altering the inserted deck in some form, what is spat out are the cards remaining
+        //this is going to be for questioning them about their action
+        return Deck()
     }
-    
-
+    public func moneyset(amount change: Int = 0){
+        balance += change
+    }
 }
-
-var Pile:Deck = Deck()
 
 public class Manager { //and all the empty husks cried out one word... 
     var players: [Player] = [Player]() //first member in this array will be the dealer, rest are standard players
@@ -113,13 +118,6 @@ public class Manager { //and all the empty husks cried out one word...
     public func raisePot(money amount: Int){
         pot += amount * numPlayers
         //respective amount needs to be subtracted from all players by iterating through the player list, do not mind if someone is negative yet
-
-    }
-    
-    public func beginRound() {
-        
-    }
-    public func endRound() {//a measure of player values (find the maximum value, but may need to see if there is a tie), then who gets how much money
 
     }
     public func clear(){
@@ -152,79 +150,93 @@ public class Manager { //and all the empty husks cried out one word...
     }
 
     public func run() {
-//the gameplay loop
+        var Pile:Deck = Deck()
+    //the gameplay loop
 
 //amount of players needed
-
-
-//NEED TO FIX
-        /*print("how many players are you going to be playing with (Minimum of 2 and Maximum of 7)")
+        print("how many players are you going to be playing with (Minimum of 2 and Maximum of 7)")
         while numPlayers <= 1{
-          do {
+          
             if (numPlayers <= 7){
-                numPlayers = try Int(readLine()!)!
+                numPlayers = Int(readLine()!)!
             }
             else{
                 print("you have inputted above 7 players, please try again")
             }
-          }
-          catch{
-            print("Invalid input of number of players, make sure it is an integer")
-          }  
-        }*/
-        
-
-
+        }
         print("You have chosen to play with \(numPlayers) real players!") 
         generatePlayers()
-    var done = false
+    
 //the loop begins
+    var done = false
     while !done {
+        numPlayers = players.count
     //ask every player for their bet, take the highest bet and make everyone add it to the pot (without anyone going bankrupt, if someone is going to go bankrupt, turn them negative)
                             //this can be done within this function
-        var maxBet: Int = Int.min
-        for i in 0...numPlayers-1 {
-            
+        var maxVal: Int = 1
+        for i:Int in 0...numPlayers-1 {
+            print("your balance is \(players[i].balance)")
+            print("what is your bet, \(players[i].name)? (minimum 1)")
+            maxVal = max(maxVal, Int(readLine()!)!)
         }
+        print("the amount each player must attempt to add is \(maxVal)")
         //deal out the cards
-                            //also can be done within this functoin
+                            //also can be done within this function
+            for i:Int in 0...numPlayers-1 {
+                players[i].dealt(numCards: 2, deck: Pile)
+            }
         //start with the end of the array and incrementing towards the dealer
         for i in stride(from: numPlayers-1, to: -1, by: -1) {
   
-        //ask about what their action is after showing them their cards (raise pot if necessary)
+        //ask about what their action is after showing them their cards (raise pot if necessary ISSUE PRESENT WITH DOUBLE DOWN?)
                             //done within a function of the player class
-            players[i].question()
+            Pile = players[i].question(deck: Pile)
         //send a bunch of new lines to clear screen so the next player isn't spoiled
             clear()
         }
-    //display the cards of everyone
-        var largest: Int = Int.min
-        for i in 0...numPlayers-1{
-            if largest < players[i].declare() {
-
+    //start comparing who has the highest value
+        var pointer = 0
+        for i:Int in 0...numPlayers-1{
+            let playersum = players[i].declare()
+            if playersum >= players[pointer].handsum{
+                pointer = i
             }
-            else if largest == players[i].declare(){
-                //force a pushback
-                break; //this should only break out of the for loop
+        }
+        //then iterate backwards, and see if there are any duplicates to force a pushback
+        var pushback = false
+        for i in stride(from: numPlayers-1, to: 0, by: -1) {
+            if (players[pointer].handsum == players[i].handsum) && (pointer != i) {
+                pushback = true
+                break
             }
-             //will need to get the index of when max makes largest < players[i].declare but also if the largest equal to one of those, then need to force a pushback
         }
     //whoever wins gets all the money
+    if pushback == false{
+        for i:Int in 0...numPlayers-1{
+            players[i].moneyset(amount: -1 * (pot/numPlayers))
+        }
+        players[pointer].moneyset(amount: pot)
+    }
 
     //if anyone is negative money they are removed from the game (make sure not to take bankrupt money as real money, and only take the balance of the player before they went bankrupt)
-
+    for i:Int in 0...numPlayers-1{
+        if players[i].balance<=0{
+            players[pointer].moneyset(amount: players[i].balance)
+            players.remove(at: i)
+        }
+    }
     //repeat asking for bets until only one player remains
         if numPlayers <= 1 {
             done = true
         }
     }
+//the loop ends
 
 
-//then end game 
 //say who won and how much money they got
+//MAY EVENTUALLY NEED TO MAKE IT SO THAT IT JUST ITERATES AND FIND WHOEVER HAS THE HIGHEST SCORE
 print("\(players[0].name) has won the game of blackjack with \(players[0].balance)")
-    }
-    
+    }    
 }
 
 
