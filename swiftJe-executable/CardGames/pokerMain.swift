@@ -18,8 +18,44 @@ class Card {
 
 class Deck {
     let SUITS: [String] = ["Spades", "Diamonds", "Clubs", "Hearts"]
-    let FACES: [String] = ["Ace", "2", "3", "4", "5", "6", "7", "8", "9", "10", "Jack", "Queen", "King"]
-    let VALUE_MAP: [String: Int] = ["Ace": 14, "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 8, "9": 9, "10": 10,"Jack": 11, "Queen": 12, "King": 13]
+
+    enum VALUE_MAP: Int {
+        case ace = 14
+        case king = 13
+        case queen = 12
+        case jack = 11
+        case ten = 10
+        case nine = 9
+        case eight = 8
+        case seven = 7
+        case six = 6
+        case five = 5
+        case four = 4
+        case three = 3
+        case two = 2
+    }
+
+    func valueString(_ value: Deck.VALUE_MAP) -> String {
+        switch value {
+            case .ace: return "Ace"
+            case .king: return "King"
+            case .queen: return "Queen"
+            case .jack: return "Jack"
+            case .ten: return "10"
+            case .nine: return "9"
+            case .eight: return "8"
+            case .seven: return "7"
+            case .six: return "6"
+            case .five: return "5"
+            case .four: return "4"
+            case .three: return "3"
+            case .two: return "2"
+        }
+    }
+
+    let VALUES: [VALUE_MAP] = [.two, .three, .four, .five, .six, .seven, .eight, .nine, .ten, .jack, .queen, .king, .ace]
+
+    
     //this is code meant for wide application, .value will be mostly unused because poker relies on card combinations to score. 
 
     var cards: [Card] = [Card]()
@@ -29,9 +65,13 @@ class Deck {
         for _ in 1...numberOfDecks{
             //Iterates through each suit, and for each suit each face.
             for suit in SUITS {
-                for face in FACES {
+                for value in VALUES {
                     //Creates cards and adds them to the cards array
-                    cards.append(Card(suit: suit, face: face, value: VALUE_MAP[face]!))
+                    cards.append(Card(
+                        suit: suit, 
+                        face: valueString(value), //retrieves the name of the enum case as the face.
+                        value: value.rawValue 
+                        ))
                 }
 
             }
@@ -81,11 +121,11 @@ enum PokerHand: String {
 }
 
 enum Chip: Int {
-    case oneChip: 1
-    case fiveChip: 5
-    case tenChip: 10
-    case twentyFiveChip: 25
-    case hundredChip: 100
+    case oneChip = 1
+    case fiveChip = 5
+    case tenChip = 10
+    case twentyFiveChip = 25
+    case hundredChip = 100
 }
 
 enum Actions: String {
@@ -132,9 +172,9 @@ class Manager {
     }
 
     func compareHighCards(playerOne: Player, playerTwo: Player) -> Player {
-        if playerOne.highCard.value > playerTwo.highCard.value {
+        if playerOne.tieBreakerCard.value > playerTwo.tieBreakerCard.value {
             return playerOne
-        } else if playerOne.highCard.value == playerTwo.highCard.value {
+        } else if playerOne.tieBreakerCard.value == playerTwo.tieBreakerCard.value {
             return playerOne //returns the first player in the event of a tie. Need to implement further high card logic to adjust.
         } else {
             return playerTwo
@@ -145,16 +185,19 @@ class Manager {
     func declareWinner(players: [Player], winner winningPlayer: Player) {
         
         for (index,player) in players.enumerated() {
-            player.money -= player.bet
             player.bet = 0
+            player.isActive = true
         }
         
         winningPlayer.money += pot
+        pot = 0
     }
 
 }
 
 class Player {  
+    //manager must be named 'manager', otherwise this line will not function.
+    weak var manager: Manager?
     //hand is an empty array of card objects
     var hand: [Card] = []
     //placeholder values for money and bet
@@ -164,13 +207,17 @@ class Player {
     var tieBreakerCard: Card = Card(suit: "", face: "", value: 0)
     var chips: [Chip: Int] = [.hundredChip : 0, .twentyFiveChip : 0, .tenChip : 0, .fiveChip : 0, .oneChip : 0]
     var handRank: Int = 10 //hand ranking relative to other players. not sure if this should be a player variable or stored in the manager class.
+    var isActive = true
 
+    init(manager: Manager?) {
+        self.manager = manager
+    }
 
     func deal(numCards numberOfCards: Int = 1, deck deckToUse: Deck) -> [Card] {
         //deals the number of cards to the player from the selected deck
         for _ in 1...numberOfCards{
             //removes the card at the first index and appends it to the hand
-            let card = deckToUse.removeCard(index: 0)
+            let card = deckToUse.removeCard(index: deckToUse.cards.count - 1)
             hand.append(card)
         }
 
@@ -183,10 +230,17 @@ class Player {
         if betAmount <= money{
             money -= betAmount
             bet += betAmount
+
+            if let chipsConverted = manager?.convertToChips(amount: bet) {
+            chips = chipsConverted
+            }
+            //REPLACE FOR UI
             print("$\(betAmount) bet placed.")
-            chips = convertToChips(amount: bet)
+            
             return true
+
         } else {
+            //REPLACE FOR UI
             print("Insufficient funds to place that bet.")
             return false
         }
@@ -200,6 +254,7 @@ class Player {
         if amountToPay > 0 {
             placeBet(amount: amountToPay)
         } else {
+            //REPLACE FOR UI
             print("Already matched the current bet.")
         }
     }
@@ -210,6 +265,7 @@ class Player {
             pile.addCard(card: card)
         }
         hand.removeAll()
+        isActive = false
     }
 
     func raise(previousBet previousBetAmount: Int, raiseAmount amountToRaise: Int) -> Bool {
@@ -220,15 +276,24 @@ class Player {
             let amountToPay = totalBet - bet  
             money -= amountToPay
             bet = totalBet
+            //REPLACE FOR UI
             print("$\(totalBet) bet placed.")  
-            chips = convertToChips(amount: bet)
+
+            if let chipsConverted = manager?.convertToChips(amount: bet) {
+                chips = chipsConverted
+            }
+
+
             return true
         } else {
+            //REPLACE FOR UI
             print("Insufficient funds to place that bet.")
             return false
         }
         
     }
+
+    
 }
 
 struct pokerHands {
@@ -333,14 +398,17 @@ func takeBets(players:[Player], deck mainDeck: Deck, pile discardPile: Deck, sta
             //checks if player is folded, if so skips their turn
             continue
         }
-        if currentBet > 0 {    
+        if currentBet > 0 {   
+            //REPLACE FOR UI 
             print("The current bet is \(currentBet)")
         }
         if currentBet > player.money + player.bet {
+            //REPLACE FOR UI
             print("Player \(index + 1) does not have enough money to continue and must fold.")
             player.fold(discardPile: discardPile)
             continue
         }
+        //REPLACE FOR UI
         print("Player \(index + 1), what would you like to do (Bet, Call, Fold, or Raise)?")
         if let input = readLine()?.lowercased(){
             let action = Actions(rawValue: input)
@@ -386,7 +454,10 @@ func takeBets(players:[Player], deck mainDeck: Deck, pile discardPile: Deck, sta
                     print("Invalid input")
 
             }
-            manager.addToPot(amount: player.bet)
+            //Removes their new total from the previous total. 
+            let contribution = player.bet - playerStatus[index].1
+            manager.addToPot(amount: contribution)
+
 
         }
         //If the player is still in the game, updates their bet amount.
@@ -470,10 +541,12 @@ func getHighCard(player: Player) -> Card {
 }
 //Takes ante bets from each player
 func takeAnte(players:[Player], deck mainDeck: Deck, pile discardPile: Deck,ante anteAmount: Int, status: inout [(Bool, Int)]) -> Void {
+    //REPLACE FOR UI
     print("Current Ante: \(anteAmount). Collecting from each player...")
     for (index, player) in players.enumerated() {
         //folds players who cannot pay the ante
         if player.money < anteAmount{
+            //REPLACE FOR UI
             print("Player \(index) does not have enough money and has folded.")
             player.fold(discardPile: discardPile)
             status[index].0 = false
@@ -481,6 +554,7 @@ func takeAnte(players:[Player], deck mainDeck: Deck, pile discardPile: Deck,ante
         }
 
         else {
+            //REPLACE FOR UI
             print("Player \(index) ponies up $\(anteAmount).")
             player.placeBet(amount: anteAmount)
             status[index].1 = anteAmount
@@ -489,9 +563,11 @@ func takeAnte(players:[Player], deck mainDeck: Deck, pile discardPile: Deck,ante
 }
 //checks the status of the game. true if more than one player remains.
 func checkStatus(players: [Player], manager: Manager) -> Bool {
+    //activeplayers is the number of players whose hands have been emptied
     var activePlayers = players.filter { !$0.hand.isEmpty }.count
 
     if activePlayers <= 1 {
+        //auto-declare winner if only one player remains
         if let winnerIndex = players.firstIndex(where: { !$0.hand.isEmpty }) {
             manager.declareWinner(players: players, winner: players[winnerIndex])
         }
@@ -516,6 +592,7 @@ func determineWinner(players: [Player], remainingPlayers activePlayers: [Player]
     // If there's only one contender, they win
     if contenders.count == 1 {
         manager.declareWinner(players: players, winner: contenders[0])
+        //REPLACE FOR UI
         print("Winner: Player with \(contenders[0].handType.rawValue)")
         return
     }
@@ -527,6 +604,7 @@ func determineWinner(players: [Player], remainingPlayers activePlayers: [Player]
     }
 
     manager.declareWinner(players: players, winner: currentBestPlayer)
+    //REPLACE FOR UI
     print("Winner: Player with \(currentBestPlayer.handType.rawValue) and high card \(currentBestPlayer.tieBreakerCard.getInfo())")
 }
 
@@ -539,7 +617,7 @@ func initializeGame(decks numDecks: Int = 1, players numPlayers: Int = 4) {
     
 
     for _ in 1...numPlayers {
-        players.append(Player())
+        players.append(Player(manager: manager))
     }
     
     //numDecks is the number of 52 card decks to put into play.
@@ -553,5 +631,72 @@ func initializeGame(decks numDecks: Int = 1, players numPlayers: Int = 4) {
 
     //not the final place to put this, just testing the betting round function
     runBettingRound(players: &players, deck: mainDeck, pile: discardPile, manager: manager)
+    determineWinner(players: players, remainingPlayers: players.filter{ $0.isActive }, manager: manager)
     
+}
+
+// MARK: - Command Line Testing Harness
+func main() {
+    print("=== Poker Game Test ===")
+    print("Enter number of players (default 4): ", terminator: "")
+    let playerInput = readLine()
+    let numPlayers = Int(playerInput ?? "") ?? 4
+
+    print("Enter number of decks (default 1): ", terminator: "")
+    let deckInput = readLine()
+    let numDecks = Int(deckInput ?? "") ?? 1
+
+    print("Enter ante amount (default 0): ", terminator: "")
+    let anteInput = readLine()
+    let ante = Int(anteInput ?? "") ?? 0
+
+    print("\nStarting game with \(numPlayers) players, \(numDecks) deck(s), and ante \(ante).\n")
+
+    // Initialize components
+    let discardPile = Deck()
+    let mainDeck = Deck()
+    let manager = Manager()
+    var players: [Player] = []
+
+    for i in 1...numPlayers {
+        let player = Player(manager: manager)
+        players.append(player)
+        print("Player \(i) created with $\(player.money)")
+    }
+
+    mainDeck.createDeck(numDecks: numDecks)
+    mainDeck.shuffleCards()
+
+    // Deal cards
+    print("\nDealing 5 cards to each player...")
+    for (index, player) in players.enumerated() {
+        player.deal(numCards: 5, deck: mainDeck)
+        print("Player \(index + 1) hand:")
+        for card in player.hand {
+            print(" - \(card.getInfo())")
+        }
+        print()
+    }
+
+    // Run the betting round
+    print("\n=== Betting Round ===")
+    runBettingRound(players: &players, deck: mainDeck, pile: discardPile, ante: ante, manager: manager)
+
+    // Evaluate results
+    print("\n=== Evaluating Hands ===")
+    for (index, player) in players.enumerated() {
+        print("Player \(index + 1): \(player.handType.rawValue) — High Card: \(player.tieBreakerCard.getInfo())")
+    }
+
+    determineWinner(players: players, remainingPlayers: players.filter { $0.isActive }, manager: manager)
+
+    print("\n=== Game Over ===")
+    for (index, player) in players.enumerated() {
+        print("Player \(index + 1): $\(player.money)")
+    }
+}
+
+// MARK: - Entry Point
+if CommandLine.arguments.contains("--test") {
+    main()
 }
