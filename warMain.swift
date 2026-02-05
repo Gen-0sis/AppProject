@@ -102,6 +102,7 @@ func runGame(players: [Player]) {
     var battleResult: GameState = .ongoing
     while checkStatus(players: players) == GameState.ongoing {
          battleResult = battle(players: players)
+        let pause: String? = readLine()
         if battleResult != .ongoing {
             print("No longer ongoing: \(battleResult.rawValue)")
             break
@@ -109,13 +110,11 @@ func runGame(players: [Player]) {
            
     
     }
-    print(players[0].hand.count)
-    print(players[1].hand.count)
+    print("players 1's final count: \(players[0].hand.count)")
+    print("players 2's final count: \(players[1].hand.count)")
     if battleResult == GameState.player0Wins {
-        print("Player 1 wins.")
         print(players[0].hand.count)
     } else if battleResult == GameState.player1Wins{
-        print("Player 2 wins.")
         print(players[1].hand.count)
     } else {
         print("Error: \(battleResult.rawValue)")
